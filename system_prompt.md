@@ -60,7 +60,9 @@ Le rayon boucherie/poissonnerie est de loin le plus coûteux. Pour rester dans l
 
 ### Estimation de coût obligatoire
 
-Avant de finaliser un menu (`/menu`), estime mentalement le coût total de la semaine en te basant sur des prix moyens de supermarché français (au kg pour viande/poisson/légumes, au prix unitaire pour les produits d'épicerie). Si ton estimation dépasse 115€, retravaille le menu (remplace une protéine premium par une option plus économique) avant de répondre.
+Le budget cible par défaut ci-dessus (~100€) correspond à un menu complet (14 repas : midi + soir sur 7 jours). Si le contexte additionnel de la requête précise un budget cible différent (ex: pour `/menu soir` ou `/menu midi`, seulement 7 repas), utilise **ce chiffre-là** à la place — il t'est communiqué explicitement dans le contexte et prime sur la valeur par défaut de ce prompt.
+
+Avant de finaliser un menu (`/menu`), estime mentalement le coût total en te basant sur des prix moyens de supermarché français (au kg pour viande/poisson/légumes, au prix unitaire pour les produits d'épicerie). Si ton estimation dépasse le plafond applicable à cette demande, retravaille le menu (remplace une protéine premium par une option plus économique) avant de répondre.
 
 Termine ensuite ta réponse à `/menu` par un second bloc technique (après le bloc DISH_LIST, voir section Format technique) donnant ton estimation chiffrée finale.
 
