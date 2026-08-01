@@ -154,6 +154,14 @@ def save_current_menu(menu_text, dishes=None):
     conn.close()
 
 
+def clear_dish_history():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM dish_history")
+    conn.commit()
+    conn.close()
+
+
 def get_current_menu():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -223,15 +231,33 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Salut, c'est ChefRecetteAlex ! 🍳\n\n"
         "Commandes disponibles :\n"
-        "/menu — génère le menu de la semaine\n"
+        "/menu — génère le menu complet de la semaine (midi + soir)\n"
+        "/menu soir — génère uniquement le menu du soir\n"
+        "/menu midi — génère uniquement le menu du midi\n"
+        "/repas — suggère un seul plat, à l'improviste\n"
+        "/repas [ingrédients] — suggère un plat avec ce que tu as sous la main\n"
         "/courses — liste de courses du menu actuel\n"
         "/remplace [plat] — remplace un plat du menu\n"
-        "/recette [plat] — recette détaillée d'un plat du menu"
+        "/recette [plat] — recette détaillée d'un plat du menu\n"
+        "/reset_historique — vide l'historique anti-répétition (confirmation requise)"
     )
 
 
 @authorized
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    meal_filter = None
+    if context.args:
+        arg = context.args[0].lower()
+        if arg in ("midi", "dejeuner", "déjeuner"):
+            meal_filter = "midi"
+        elif arg in ("soir", "diner", "dîner"):
+            meal_filter = "soir"
+        else:
+            await update.message.reply_text(
+                "Je n'ai pas reconnu cet argument. Utilise /menu, /menu midi, ou /menu soir."
+            )
+            return
+
     await update.message.reply_text("Je te prépare ça, une seconde... 👨‍🍳")
 
     recent = get_recent_dishes(days=30)
@@ -252,11 +278,20 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "si le temps est froid ou pluvieux."
         )
 
-    raw_response = ask_claude(
-        "Génère le menu complet de la semaine (midi et soir, du lundi au dimanche), "
-        "avec pour chaque plat le temps de préparation et la recette détaillée.",
-        extra_context=extra_context,
-    )
+    if meal_filter:
+        request_text = (
+            f"Génère uniquement le menu du {meal_filter} pour la semaine (lundi à dimanche), "
+            "avec pour chaque plat le temps de préparation et la recette détaillée. "
+            f"Ne propose rien pour l'autre repas ({'soir' if meal_filter == 'midi' else 'midi'}) — "
+            "uniquement le repas demandé."
+        )
+    else:
+        request_text = (
+            "Génère le menu complet de la semaine (midi et soir, du lundi au dimanche), "
+            "avec pour chaque plat le temps de préparation et la recette détaillée."
+        )
+
+    raw_response = ask_claude(request_text, extra_context=extra_context)
 
     menu_text, dishes = extract_dish_list(raw_response)
 
@@ -340,6 +375,45 @@ async def remplace(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 @authorized
+async def repas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ingredients = " ".join(context.args) if context.args else None
+
+    await update.message.reply_text("Je réfléchis à ça... 🍳")
+
+    if ingredients:
+        request_text = (
+            f"Propose UN SEUL plat (un repas, pas un menu de semaine), avec recette complète "
+            f"(ingrédients avec quantités, étapes de préparation), en utilisant en priorité ces "
+            f"ingrédients disponibles : {ingredients}. Respecte les contraintes du foyer. "
+            "Si besoin, tu peux compléter avec d'autres ingrédients courants, mais privilégie "
+            "au maximum ce qui a été fourni."
+        )
+    else:
+        request_text = (
+            "Propose UN SEUL plat (un repas, pas un menu de semaine), au choix, avec recette "
+            "complète (ingrédients avec quantités, étapes de préparation), en respectant les "
+            "contraintes du foyer."
+        )
+
+    recette_text = ask_claude(request_text)
+    await _send_long_message(update, recette_text)
+
+
+@authorized
+async def reset_historique(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args or context.args[0].lower() != "confirme":
+        await update.message.reply_text(
+            "⚠️ Cette action vide définitivement l'historique anti-répétition "
+            "(les 2x/mois ne seront plus comptés pour les plats déjà proposés).\n\n"
+            "Pour confirmer, tape : /reset_historique confirme"
+        )
+        return
+
+    clear_dish_history()
+    await update.message.reply_text("✅ Historique des plats vidé. Le compteur repart de zéro.")
+
+
+@authorized
 async def recette(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Précise le plat : /recette [nom du plat]")
@@ -399,9 +473,11 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CommandHandler("repas", repas))
     app.add_handler(CommandHandler("courses", courses))
     app.add_handler(CommandHandler("remplace", remplace))
     app.add_handler(CommandHandler("recette", recette))
+    app.add_handler(CommandHandler("reset_historique", reset_historique))
 
     logger.info("ChefRecetteAlex démarré.")
     app.run_polling()
