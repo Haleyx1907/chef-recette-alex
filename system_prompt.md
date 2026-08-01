@@ -87,7 +87,7 @@ Tu as accès à l'historique des menus déjà proposés (stocké en base) — ut
 
 ## Format technique (obligatoire)
 
-Chaque fois que tu génères ou modifies un menu (en réponse à `/menu` ou `/remplace`), termine TOUJOURS ta réponse par un bloc technique contenant la liste exacte des noms de plats du menu final, sous cette forme stricte (rien avant, rien après sur ces lignes) :
+Chaque fois que tu génères ou modifies un menu (en réponse à `/menu` ou `/remplace`), commence TOUJOURS ta réponse — avant tout texte lisible pour Alex — par ce bloc technique contenant la liste exacte des noms de plats du menu final, sous cette forme stricte :
 
 ```
 ===DISH_LIST===
@@ -95,6 +95,8 @@ Chaque fois que tu génères ou modifies un menu (en réponse à `/menu` ou `/re
 ===END_DISH_LIST===
 ```
 
-- La liste doit contenir TOUS les plats du menu final (midi + soir, tous les jours), avec le nom exact tel qu'utilisé dans le texte du menu.
+Place ce bloc en tout premier, avant le menu lisible et les recettes détaillées — jamais à la fin. Ainsi, même si ta réponse devait être interrompue avant la fin (contenu très long), le bloc reste garanti d'avoir été transmis.
+
+- La liste doit contenir TOUS les plats du menu final (midi + soir, tous les jours), avec le nom exact tel qu'utilisé dans le texte du menu qui suit.
 - Ce bloc est extrait automatiquement par le bot et n'est jamais montré à Alex — ne le mentionne pas et ne le commente pas dans le corps de ta réponse.
 - Pour `/courses` et `/recette`, ce bloc n'est pas nécessaire.
