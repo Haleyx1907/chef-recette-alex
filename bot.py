@@ -311,6 +311,33 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw_response = ask_claude(request_text, extra_context=extra_context)
 
     menu_text, dishes = extract_dish_list(raw_response)
+    menu_text, budget_estimate = extract_budget_estimate(menu_text)
+
+    # Si le budget estimé dépasse le plafond, on redemande une seule fois
+    # une révision à Claude avant de livrer le menu à Alex.
+    if budget_estimate is not None and budget_estimate > BUDGET_HARD_CEILING_EUROS:
+        logger.warning(
+            f"Budget estimé à {budget_estimate}€, au-dessus du plafond de "
+            f"{BUDGET_HARD_CEILING_EUROS}€. Nouvelle demande de révision à Claude."
+        )
+        await update.message.reply_text(
+            f"⚠️ Mon premier jet dépassait le budget (~{budget_estimate:.0f}€) — je retravaille le menu..."
+        )
+
+        revision_context = extra_context + (
+            f"\n\nATTENTION : ta proposition précédente était estimée à {budget_estimate:.0f}€, "
+            f"au-dessus du plafond de {BUDGET_HARD_CEILING_EUROS}€. Remplace au moins une protéine "
+            "premium par une option plus économique (poulet, œufs, thon en boîte, bœuf haché standard) "
+            "et propose un nouveau menu complet, avec une nouvelle estimation de coût sincère."
+        )
+
+        raw_response_2 = ask_claude(request_text, extra_context=revision_context)
+        menu_text_2, dishes_2 = extract_dish_list(raw_response_2)
+        menu_text_2, budget_estimate_2 = extract_budget_estimate(menu_text_2)
+
+        # On garde la version révisée, qu'elle soit dans le budget ou non —
+        # au moins Alex est prévenu du montant final réel.
+        menu_text, dishes, budget_estimate = menu_text_2, dishes_2, budget_estimate_2
 
     save_current_menu(menu_text, dishes=dishes)
     if dishes:
@@ -320,6 +347,9 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ Je n'ai pas pu extraire la liste des plats pour l'historique anti-répétition "
             "cette fois-ci — le menu reste valide, mais ce menu ne sera pas comptabilisé pour la règle des 2x/mois."
         )
+
+    if budget_estimate is not None:
+        await update.message.reply_text(f"💶 Estimation du coût total de la semaine : ~{budget_estimate:.0f}€")
 
     await _send_long_message(update, menu_text)
 
@@ -452,6 +482,35 @@ DISH_LIST_PATTERN = re.compile(
     r"===DISH_LIST===\s*(\[.*?\])\s*===END_DISH_LIST===",
     re.DOTALL,
 )
+
+
+BUDGET_PATTERN = re.compile(
+    r"===BUDGET_ESTIMATE===\s*(\{.*?\})\s*===END_BUDGET_ESTIMATE===",
+    re.DOTALL,
+)
+
+BUDGET_TARGET_EUROS = 100
+BUDGET_HARD_CEILING_EUROS = 115  # au-delà, on redemande une révision à Claude
+
+
+def extract_budget_estimate(text):
+    """Extrait l'estimation budgétaire déclarée par Claude, et renvoie
+    (texte_nettoyé, montant_en_euros_ou_None)."""
+    match = BUDGET_PATTERN.search(text)
+    if not match:
+        logger.warning("Bloc BUDGET_ESTIMATE introuvable dans la réponse de Claude.")
+        return text, None
+
+    raw = match.group(1)
+    cleaned_text = BUDGET_PATTERN.sub("", text).strip()
+
+    try:
+        data = json.loads(raw)
+        total = data.get("total_estime_euros")
+        return cleaned_text, float(total) if total is not None else None
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+        logger.warning(f"BUDGET_ESTIMATE malformé, ignoré : {e}")
+        return cleaned_text, None
 
 
 def extract_dish_list(text):
