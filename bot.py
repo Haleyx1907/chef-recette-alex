@@ -30,6 +30,22 @@ MODEL = "claude-sonnet-4-6"
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
+FRENCH_WEEKDAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+
+
+def get_day_mapping_context():
+    """Génère la correspondance entre 'Jour 1' à 'Jour 7' et les vraies dates
+    calendaires (en commençant par aujourd'hui), pour que le menu puisse être
+    aligné avec les vrais jours d'entraînement d'Alex (lundi/mardi/jeudi/vendredi)."""
+    today = datetime.now()
+    lines = ["Correspondance entre les numéros de jour du menu et les vraies dates :"]
+    for i in range(7):
+        d = today + timedelta(days=i)
+        weekday_name = FRENCH_WEEKDAYS[d.weekday()]
+        lines.append(f"- Jour {i + 1} = {weekday_name} {d.strftime('%d/%m')}")
+    return "\n".join(lines)
+
+
 # --- Météo (Veurey-Voroize, 38113) ---
 WEATHER_LAT = 45.272
 WEATHER_LON = 5.613
@@ -268,8 +284,9 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     weather_context = get_weather_forecast()
+    day_mapping_context = get_day_mapping_context()
 
-    extra_context = recent_context
+    extra_context = recent_context + "\n\n" + day_mapping_context
     if weather_context:
         extra_context += "\n\n" + weather_context
         extra_context += (
@@ -280,14 +297,14 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if meal_filter:
         request_text = (
-            f"Génère uniquement le menu du {meal_filter} pour la semaine (lundi à dimanche), "
+            f"Génère uniquement le menu du {meal_filter} pour la semaine (Jour 1 à Jour 7), "
             "avec pour chaque plat le temps de préparation et la recette détaillée. "
             f"Ne propose rien pour l'autre repas ({'soir' if meal_filter == 'midi' else 'midi'}) — "
             "uniquement le repas demandé."
         )
     else:
         request_text = (
-            "Génère le menu complet de la semaine (midi et soir, du lundi au dimanche), "
+            "Génère le menu complet de la semaine (midi et soir, Jour 1 à Jour 7), "
             "avec pour chaque plat le temps de préparation et la recette détaillée."
         )
 
