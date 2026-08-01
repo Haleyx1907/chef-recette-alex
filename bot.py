@@ -296,6 +296,8 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     if meal_filter:
+        budget_target = BUDGET_TARGET_HALF_EUROS
+        budget_ceiling = BUDGET_CEILING_HALF_EUROS
         request_text = (
             f"Génère uniquement le menu du {meal_filter} pour la semaine (Jour 1 à Jour 7), "
             "avec pour chaque plat le temps de préparation et la recette détaillée. "
@@ -303,10 +305,19 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "uniquement le repas demandé."
         )
     else:
+        budget_target = BUDGET_TARGET_FULL_EUROS
+        budget_ceiling = BUDGET_CEILING_FULL_EUROS
         request_text = (
             "Génère le menu complet de la semaine (midi et soir, Jour 1 à Jour 7), "
             "avec pour chaque plat le temps de préparation et la recette détaillée."
         )
+
+    extra_context += (
+        f"\n\nBudget cible pour CETTE demande précise : ~{budget_target:.0f}€ "
+        f"(plafond {budget_ceiling:.0f}€), car il s'agit "
+        + (f"uniquement du repas du {meal_filter}" if meal_filter else "du menu complet midi + soir")
+        + " sur la semaine — ignore le budget par défaut du prompt système et utilise ce chiffre-ci."
+    )
 
     raw_response = ask_claude(request_text, extra_context=extra_context)
 
@@ -315,10 +326,10 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Si le budget estimé dépasse le plafond, on redemande une seule fois
     # une révision à Claude avant de livrer le menu à Alex.
-    if budget_estimate is not None and budget_estimate > BUDGET_HARD_CEILING_EUROS:
+    if budget_estimate is not None and budget_estimate > budget_ceiling:
         logger.warning(
             f"Budget estimé à {budget_estimate}€, au-dessus du plafond de "
-            f"{BUDGET_HARD_CEILING_EUROS}€. Nouvelle demande de révision à Claude."
+            f"{budget_ceiling:.0f}€. Nouvelle demande de révision à Claude."
         )
         await update.message.reply_text(
             f"⚠️ Mon premier jet dépassait le budget (~{budget_estimate:.0f}€) — je retravaille le menu..."
@@ -326,7 +337,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         revision_context = extra_context + (
             f"\n\nATTENTION : ta proposition précédente était estimée à {budget_estimate:.0f}€, "
-            f"au-dessus du plafond de {BUDGET_HARD_CEILING_EUROS}€. Remplace au moins une protéine "
+            f"au-dessus du plafond de {budget_ceiling:.0f}€. Remplace au moins une protéine "
             "premium par une option plus économique (poulet, œufs, thon en boîte, bœuf haché standard) "
             "et propose un nouveau menu complet, avec une nouvelle estimation de coût sincère."
         )
@@ -489,8 +500,12 @@ BUDGET_PATTERN = re.compile(
     re.DOTALL,
 )
 
-BUDGET_TARGET_EUROS = 100
-BUDGET_HARD_CEILING_EUROS = 115  # au-delà, on redemande une révision à Claude
+BUDGET_TARGET_FULL_EUROS = 100
+BUDGET_CEILING_FULL_EUROS = 115
+# Pour un seul repas (midi OU soir), le budget cible est proportionnellement
+# réduit de moitié (7 repas au lieu de 14 sur la semaine).
+BUDGET_TARGET_HALF_EUROS = BUDGET_TARGET_FULL_EUROS / 2
+BUDGET_CEILING_HALF_EUROS = BUDGET_CEILING_FULL_EUROS / 2
 
 
 def extract_budget_estimate(text):
