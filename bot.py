@@ -131,10 +131,17 @@ def ask_claude(user_message, extra_context=""):
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=4000,
+        max_tokens=8000,
         system=full_system,
         messages=[{"role": "user", "content": user_message}],
     )
+
+    if response.stop_reason == "max_tokens":
+        logger.warning(
+            "Réponse Claude tronquée (max_tokens atteint) — le bloc DISH_LIST "
+            "risque d'être manquant ou le contenu incomplet."
+        )
+
     return "".join(block.text for block in response.content if block.type == "text")
 
 
