@@ -1,0 +1,14 @@
+services:
+  chef-recette-agent:
+    build: .
+    container_name: chef-recette-agent
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      AUTHORIZED_CHAT_ID: ${AUTHORIZED_CHAT_ID}
+    volumes:
+      - chef_recette_data:/app/data
+
+volumes:
+  chef_recette_data:
