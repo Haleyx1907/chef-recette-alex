@@ -3,6 +3,7 @@ import re
 import json
 import sqlite3
 import logging
+import httpx
 from datetime import datetime, timedelta
 
 from telegram import Update
@@ -27,6 +28,62 @@ SYSTEM_PROMPT_PATH = "/app/system_prompt.md"
 MODEL = "claude-sonnet-4-6"
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
+
+
+# --- Météo (Veurey-Voroize, 38113) ---
+WEATHER_LAT = 45.272
+WEATHER_LON = 5.613
+WEATHER_LOCATION_NAME = "Veurey-Voroize (38113)"
+
+WMO_CODE_DESCRIPTIONS = {
+    0: "ciel dégagé", 1: "plutôt dégagé", 2: "partiellement nuageux", 3: "couvert",
+    45: "brouillard", 48: "brouillard givrant",
+    51: "bruine légère", 53: "bruine modérée", 55: "bruine forte",
+    61: "pluie légère", 63: "pluie modérée", 65: "pluie forte",
+    71: "neige légère", 73: "neige modérée", 75: "neige forte",
+    80: "averses légères", 81: "averses modérées", 82: "averses violentes",
+    95: "orage", 96: "orage avec grêle", 99: "orage violent avec grêle",
+}
+
+
+def get_weather_forecast():
+    """Récupère les prévisions météo à 7 jours via Open-Meteo (API gratuite,
+    sans clé). Renvoie un texte prêt à insérer dans le contexte du prompt.
+    En cas d'échec (réseau, API indisponible), renvoie une chaîne vide plutôt
+    que de faire planter la génération du menu."""
+    try:
+        response = httpx.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": WEATHER_LAT,
+                "longitude": WEATHER_LON,
+                "daily": "temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum",
+                "timezone": "Europe/Paris",
+                "forecast_days": 7,
+            },
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        dates = data["daily"]["time"]
+        tmax = data["daily"]["temperature_2m_max"]
+        tmin = data["daily"]["temperature_2m_min"]
+        codes = data["daily"]["weathercode"]
+        precip = data["daily"]["precipitation_sum"]
+
+        lines = [f"Météo prévue à {WEATHER_LOCATION_NAME} pour les 7 prochains jours :"]
+        for i in range(len(dates)):
+            desc = WMO_CODE_DESCRIPTIONS.get(codes[i], "conditions variables")
+            lines.append(
+                f"- {dates[i]} : {tmin[i]:.0f}°C à {tmax[i]:.0f}°C, {desc}, "
+                f"précipitations {precip[i]:.0f}mm"
+            )
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.warning(f"Impossible de récupérer la météo : {e}")
+        return ""
 
 
 # --- DB setup ---
@@ -179,10 +236,21 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     recent = get_recent_dishes(days=30)
     recent_list = "\n".join(f"- {name} (proposé le {date[:10]})" for name, date in recent)
-    extra_context = (
+    recent_context = (
         f"Plats déjà proposés dans les 30 derniers jours (à ne pas répéter plus de 2x/mois) :\n{recent_list}"
         if recent_list else "Aucun plat proposé récemment."
     )
+
+    weather_context = get_weather_forecast()
+
+    extra_context = recent_context
+    if weather_context:
+        extra_context += "\n\n" + weather_context
+        extra_context += (
+            "\n\nAdapte le menu à ces prévisions : privilégie des plats plus légers/frais "
+            "si les températures sont élevées, et des plats plus réconfortants/mijotés "
+            "si le temps est froid ou pluvieux."
+        )
 
     raw_response = ask_claude(
         "Génère le menu complet de la semaine (midi et soir, du lundi au dimanche), "
