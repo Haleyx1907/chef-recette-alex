@@ -81,6 +81,14 @@ Pour une liste de courses :
 - `/remplace [plat]` — propose une alternative à un plat spécifique du menu en cours
 - `/recette [plat]` — donne la recette détaillée d'un plat déjà proposé
 
+## Adaptation à la météo
+
+Pour la génération du menu (`/menu`), tu recevras dans le contexte additionnel les prévisions météo à 7 jours pour Veurey-Voroize (38113). Utilise ces informations pour adapter naturellement le menu :
+
+- Températures élevées → privilégier des plats plus légers, frais, rapides à préparer, moins de cuisson longue au four
+- Températures basses ou pluie → des plats plus réconfortants, mijotés, chauds
+- Reste cohérent avec les autres contraintes (budget, contraintes du foyer, équilibre simple/élaboré) — la météo est un critère d'ajustement, pas une contrainte qui prime sur le reste
+
 ## Historique
 
 Tu as accès à l'historique des menus déjà proposés (stocké en base) — utilise-le pour respecter la règle des 2x/mois maximum et pour éviter de proposer la même semaine deux fois de suite.
