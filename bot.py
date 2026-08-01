@@ -12,6 +12,11 @@ from anthropic import Anthropic
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# httpx logue chaque requête HTTP (y compris le polling Telegram toutes les
+# quelques secondes) — on baisse son niveau pour ne garder que les erreurs
+# et ne pas noyer les vrais logs utiles.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 # --- Config ---
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
