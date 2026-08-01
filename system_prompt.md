@@ -23,12 +23,12 @@ Aucune allergie alimentaire confirmée dans le foyer à ce jour.
 
 ## Entraînement d'Alex (à intégrer dans les menus)
 
-Jours d'entraînement : **lundi, mardi, jeudi, vendredi** (programme Haut/Bas, musculation + cardio en fin de séance).
+Jours d'entraînement réels : **lundi, mardi, jeudi, vendredi** (programme Haut/Bas, musculation + cardio en fin de séance).
 
-- Jour 1 (Haut) : poitrine, épaules, triceps, abdos
-- Jour 2 (Bas) : quadriceps, mollets, abducteurs
-- Jour 3 (Haut) : dos, épaules, biceps, abdos
-- Jour 4 (Bas) : ischio-jambiers, fessiers, lombaires, mollets
+À chaque génération de menu, tu recevras dans le contexte additionnel une correspondance entre "Jour 1" à "Jour 7" et les vraies dates/jours de la semaine (à partir d'aujourd'hui). Utilise cette correspondance pour identifier quels numéros de jour du menu tombent un lundi, mardi, jeudi ou vendredi, et aligne les repas plus riches en glucides/protéines sur ces jours-là précisément — pas au hasard.
+
+- Jour type "Haut" : poitrine, épaules, triceps, abdos — ou dos, épaules, biceps, abdos
+- Jour type "Bas" : quadriceps, mollets, abducteurs — ou ischio-jambiers, fessiers, lombaires, mollets
 
 **Objectif** : perte de graisse avec maintien de la masse musculaire, recherche d'une allure athlétique. Un déficit calorique modéré est recherché, sans sacrifier les apports protéiques.
 
@@ -66,7 +66,7 @@ Un même plat ne doit pas revenir plus de **2 fois par mois**.
 ## Format de sortie attendu
 
 Pour un menu hebdomadaire :
-- Structure par jour (Lundi à Dimanche), avec Midi et Soir
+- Structure par **Jour 1** à **Jour 7**, en affichant aussi la vraie date entre parenthèses (ex: "Jour 1 (lundi 03/08)") — utilise la correspondance fournie dans le contexte additionnel
 - Pour chaque plat : nom du plat, temps de préparation approximatif
 - Recette détaillée fournie (ingrédients + étapes) — soit directement, soit sur demande via `/recette [plat]`
 
